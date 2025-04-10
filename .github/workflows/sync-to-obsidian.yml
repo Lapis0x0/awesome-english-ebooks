@@ -129,6 +129,11 @@ jobs:
           echo "配置AWS S3寻址样式"
           aws configure set default.s3.addressing_style virtual
           
+          # 设置分片上传参数
+          export AWS_S3_MULTIPART_THRESHOLD=8MB  # 默认为8MB
+          export AWS_S3_MAX_CONCURRENT_REQUESTS=10
+          export AWS_S3_MAX_QUEUE_SIZE=1000
+          
           echo "开始同步经济学人目录: ${{ steps.economist.outputs.latest_dir }}"
           
           if [ -d "${{ steps.economist.outputs.latest_dir }}" ]; then
@@ -136,7 +141,29 @@ jobs:
             for file in "${{ steps.economist.outputs.latest_dir }}"/*.pdf; do
               if [ -f "$file" ]; then
                 echo "正在上传PDF文件: $file"
-                aws s3 cp "$file" "s3://${{ secrets.COS_BUCKET }}/2.外刊/经济学人/${{ steps.date.outputs.date }}/" --endpoint-url=https://cos.${{ secrets.COS_REGION }}.myqcloud.com
+                # 获取文件大小用于日志输出
+                file_size=$(stat -c%s "$file")
+                echo "文件大小: $file_size 字节"
+                
+                # 提取文件名
+                filename=$(basename "$file")
+                
+                # 尝试使用标准命令上传
+                echo "使用标准方式上传文件..."
+                # 使用--sse-c-key参数强制设置Content-Length头
+                if ! aws s3 cp "$file" "s3://${{ secrets.COS_BUCKET }}/2.外刊/经济学人/${{ steps.date.outputs.date }}/$filename" \
+                  --endpoint-url=https://cos.${{ secrets.COS_REGION }}.myqcloud.com \
+                  --expected-size $file_size; then
+                  
+                  echo "标准上传失败，尝试使用低级命令上传..."
+                  # 如果标准命令失败，使用低级命令
+                  aws s3api put-object \
+                    --bucket ${{ secrets.COS_BUCKET }} \
+                    --key "2.外刊/经济学人/${{ steps.date.outputs.date }}/$filename" \
+                    --body "$file" \
+                    --content-length $file_size \
+                    --endpoint-url=https://cos.${{ secrets.COS_REGION }}.myqcloud.com
+                fi
               fi
             done
             echo "已同步经济学人PDF到COS"
@@ -148,12 +175,35 @@ jobs:
       - name: 同步纽约客到COS
         if: steps.newyorker.outputs.latest_dir != ''
         run: |
+          # 复用已设置的AWS配置
+          
           if [ -d "${{ steps.newyorker.outputs.latest_dir }}" ]; then
             # 只上传PDF文件
             for file in "${{ steps.newyorker.outputs.latest_dir }}"/*.pdf; do
               if [ -f "$file" ]; then
                 echo "正在上传PDF文件: $file"
-                aws s3 cp "$file" "s3://${{ secrets.COS_BUCKET }}/2.外刊/纽约客/${{ steps.date.outputs.date }}/" --endpoint-url=https://cos.${{ secrets.COS_REGION }}.myqcloud.com
+                # 获取文件大小用于日志输出
+                file_size=$(stat -c%s "$file")
+                echo "文件大小: $file_size 字节"
+                
+                # 提取文件名
+                filename=$(basename "$file")
+                
+                # 尝试使用标准命令上传
+                echo "使用标准方式上传文件..."
+                if ! aws s3 cp "$file" "s3://${{ secrets.COS_BUCKET }}/2.外刊/纽约客/${{ steps.date.outputs.date }}/$filename" \
+                  --endpoint-url=https://cos.${{ secrets.COS_REGION }}.myqcloud.com \
+                  --expected-size $file_size; then
+                  
+                  echo "标准上传失败，尝试使用低级命令上传..."
+                  # 如果标准命令失败，使用低级命令
+                  aws s3api put-object \
+                    --bucket ${{ secrets.COS_BUCKET }} \
+                    --key "2.外刊/纽约客/${{ steps.date.outputs.date }}/$filename" \
+                    --body "$file" \
+                    --content-length $file_size \
+                    --endpoint-url=https://cos.${{ secrets.COS_REGION }}.myqcloud.com
+                fi
               fi
             done
             echo "已同步纽约客PDF到COS"
@@ -171,7 +221,28 @@ jobs:
               for file in "$LATEST_ATLANTIC_DIR"/*.pdf; do
                 if [ -f "$file" ]; then
                   echo "正在上传PDF文件: $file"
-                  aws s3 cp "$file" "s3://${{ secrets.COS_BUCKET }}/2.外刊/大西洋月刊/${{ steps.date.outputs.date }}/" --endpoint-url=https://cos.${{ secrets.COS_REGION }}.myqcloud.com
+                  # 获取文件大小用于日志输出
+                  file_size=$(stat -c%s "$file")
+                  echo "文件大小: $file_size 字节"
+                  
+                  # 提取文件名
+                  filename=$(basename "$file")
+                  
+                  # 尝试使用标准命令上传
+                  echo "使用标准方式上传文件..."
+                  if ! aws s3 cp "$file" "s3://${{ secrets.COS_BUCKET }}/2.外刊/大西洋月刊/${{ steps.date.outputs.date }}/$filename" \
+                    --endpoint-url=https://cos.${{ secrets.COS_REGION }}.myqcloud.com \
+                    --expected-size $file_size; then
+                    
+                    echo "标准上传失败，尝试使用低级命令上传..."
+                    # 如果标准命令失败，使用低级命令
+                    aws s3api put-object \
+                      --bucket ${{ secrets.COS_BUCKET }} \
+                      --key "2.外刊/大西洋月刊/${{ steps.date.outputs.date }}/$filename" \
+                      --body "$file" \
+                      --content-length $file_size \
+                      --endpoint-url=https://cos.${{ secrets.COS_REGION }}.myqcloud.com
+                  fi
                 fi
               done
               echo "已同步The Atlantic PDF到COS"
@@ -192,7 +263,28 @@ jobs:
               for file in "$LATEST_WIRED_DIR"/*.pdf; do
                 if [ -f "$file" ]; then
                   echo "正在上传PDF文件: $file"
-                  aws s3 cp "$file" "s3://${{ secrets.COS_BUCKET }}/2.外刊/连线杂志/${{ steps.date.outputs.date }}/" --endpoint-url=https://cos.${{ secrets.COS_REGION }}.myqcloud.com
+                  # 获取文件大小用于日志输出
+                  file_size=$(stat -c%s "$file")
+                  echo "文件大小: $file_size 字节"
+                  
+                  # 提取文件名
+                  filename=$(basename "$file")
+                  
+                  # 尝试使用标准命令上传
+                  echo "使用标准方式上传文件..."
+                  if ! aws s3 cp "$file" "s3://${{ secrets.COS_BUCKET }}/2.外刊/连线杂志/${{ steps.date.outputs.date }}/$filename" \
+                    --endpoint-url=https://cos.${{ secrets.COS_REGION }}.myqcloud.com \
+                    --expected-size $file_size; then
+                    
+                    echo "标准上传失败，尝试使用低级命令上传..."
+                    # 如果标准命令失败，使用低级命令
+                    aws s3api put-object \
+                      --bucket ${{ secrets.COS_BUCKET }} \
+                      --key "2.外刊/连线杂志/${{ steps.date.outputs.date }}/$filename" \
+                      --body "$file" \
+                      --content-length $file_size \
+                      --endpoint-url=https://cos.${{ secrets.COS_REGION }}.myqcloud.com
+                  fi
                 fi
               done
               echo "已同步Wired PDF到COS"
