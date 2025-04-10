@@ -12,8 +12,19 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      # 检出当前仓库代码（使用浅克隆减少下载量）
+      # 缓存仓库内容
+      - name: 缓存仓库
+        id: cache-repo
+        uses: actions/cache@v3
+        with:
+          path: .
+          key: repo-sync-${{ github.sha }}
+          restore-keys: |
+            repo-sync-
+    
+      # 如果缓存未命中，检出当前仓库代码
       - name: 检出当前仓库
+        if: steps.cache-repo.outputs.cache-hit != 'true'
         uses: actions/checkout@v3
         with:
           fetch-depth: 1
