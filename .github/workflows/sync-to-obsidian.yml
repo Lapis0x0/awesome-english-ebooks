@@ -16,23 +16,8 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     
     steps:
-      # 缓存仓库内容
-      - name: 缓存仓库
-        id: cache-repo
-        uses: actions/cache@v3
-        with:
-          path: |
-            ./01_economist
-            ./02_new_yorker
-            ./04_atlantic
-            ./05_wired
-          key: repo-content-${{ github.sha }}
-          restore-keys: |
-            repo-content-
-
-      # 如果缓存未命中，检出当前仓库代码（使用稀疏检出策略，只检出必要的目录结构）
+      # 检出当前仓库代码（使用稀疏检出策略，只检出必要的目录结构）
       - name: 检出当前仓库
-        if: steps.cache-repo.outputs.cache-hit != 'true'
         uses: actions/checkout@v3
         with:
           fetch-depth: 1
@@ -71,13 +56,6 @@ jobs:
           # 验证配置是否生效
           echo "AWS CLI配置完成，当前配置："
           aws configure list
-          
-      # 缓存AWS CLI配置
-      - name: 缓存AWS CLI配置
-        uses: actions/cache@v3
-        with:
-          path: ~/.aws
-          key: aws-cli-config-${{ runner.os }}
       
       # 获取当前日期
       - name: 获取当前日期
@@ -143,7 +121,7 @@ jobs:
                 # 提取文件名
                 filename=$(basename "$file")
                 
-                # 直接使用低级命令上传，避免标准命令失败的情况
+                # 直接使用低级命令上传
                 echo "使用s3api上传文件..."
                 aws s3api put-object \
                   --bucket ${{ secrets.COS_BUCKET }} \
