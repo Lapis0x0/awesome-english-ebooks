@@ -47,6 +47,9 @@ jobs:
           cat > ~/.aws/config << EOF
           [default]
           region = ${{ secrets.COS_REGION }}
+          s3 =
+            addressing_style = virtual
+            endpoint_url = https://cos.${{ secrets.COS_REGION }}.myqcloud.com
           EOF
       
       # 获取当前日期
@@ -74,14 +77,15 @@ jobs:
       - name: 同步经济学人到COS
         if: steps.economist.outputs.latest_dir != ''
         run: |
-          aws s3 sync ${{ steps.economist.outputs.latest_dir }} s3://${{ secrets.COS_BUCKET }}/obisidian-1302893975/2.外刊/经济学人/${{ steps.date.outputs.date }}/ --endpoint-url=https://cos.${{ secrets.COS_REGION }}.myqcloud.com --no-verify-ssl
+          aws configure set default.s3.addressing_style virtual
+          aws s3 sync ${{ steps.economist.outputs.latest_dir }} s3://${{ secrets.COS_BUCKET }}/obisidian-1302893975/2.外刊/经济学人/${{ steps.date.outputs.date }}/ --no-verify-ssl
           echo "已同步经济学人到COS"
       
       # 同步纽约客到COS
       - name: 同步纽约客到COS
         if: steps.newyorker.outputs.latest_dir != ''
         run: |
-          aws s3 sync ${{ steps.newyorker.outputs.latest_dir }} s3://${{ secrets.COS_BUCKET }}/obisidian-1302893975/2.外刊/纽约客/${{ steps.date.outputs.date }}/ --endpoint-url=https://cos.${{ secrets.COS_REGION }}.myqcloud.com --no-verify-ssl
+          aws s3 sync ${{ steps.newyorker.outputs.latest_dir }} s3://${{ secrets.COS_BUCKET }}/obisidian-1302893975/2.外刊/纽约客/${{ steps.date.outputs.date }}/ --no-verify-ssl
           echo "已同步纽约客到COS"
       
       # 同步The Atlantic到COS（如果有更新）
@@ -89,7 +93,7 @@ jobs:
         run: |
           LATEST_ATLANTIC_DIR=$(find ./04_atlantic -type d -name "*" -not -path "*/\.*" | sort -r | head -n 1)
           if [ -n "$LATEST_ATLANTIC_DIR" ]; then
-            aws s3 sync $LATEST_ATLANTIC_DIR s3://${{ secrets.COS_BUCKET }}/obisidian-1302893975/2.外刊/大西洋月刊/${{ steps.date.outputs.date }}/ --endpoint-url=https://cos.${{ secrets.COS_REGION }}.myqcloud.com --no-verify-ssl
+            aws s3 sync $LATEST_ATLANTIC_DIR s3://${{ secrets.COS_BUCKET }}/obisidian-1302893975/2.外刊/大西洋月刊/${{ steps.date.outputs.date }}/ --no-verify-ssl
             echo "已同步The Atlantic到COS"
           else
             echo "未找到The Atlantic目录"
@@ -100,7 +104,7 @@ jobs:
         run: |
           LATEST_WIRED_DIR=$(find ./05_wired -type d -name "*" -not -path "*/\.*" | sort -r | head -n 1)
           if [ -n "$LATEST_WIRED_DIR" ]; then
-            aws s3 sync $LATEST_WIRED_DIR s3://${{ secrets.COS_BUCKET }}/obisidian-1302893975/2.外刊/连线杂志/${{ steps.date.outputs.date }}/ --endpoint-url=https://cos.${{ secrets.COS_REGION }}.myqcloud.com --no-verify-ssl
+            aws s3 sync $LATEST_WIRED_DIR s3://${{ secrets.COS_BUCKET }}/obisidian-1302893975/2.外刊/连线杂志/${{ steps.date.outputs.date }}/ --no-verify-ssl
             echo "已同步Wired到COS"
           else
             echo "未找到Wired目录"
