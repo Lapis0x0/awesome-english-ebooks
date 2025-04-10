@@ -12,17 +12,25 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      # 检出当前仓库代码
+      # 检出当前仓库代码（使用浅克隆减少下载量）
       - name: 检出当前仓库
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0
+          fetch-depth: 1
       
-      # 添加上游仓库
+      # 添加上游仓库并只获取最新提交
       - name: 添加上游仓库
         run: |
           git remote add upstream https://github.com/hehonghui/awesome-english-ebooks.git
-          git fetch upstream
+          git fetch upstream --depth=1
+      
+      # 备份GitHub Action文件
+      - name: 备份GitHub Action文件
+        run: |
+          mkdir -p /tmp/github-actions-backup
+          if [ -d ".github/workflows" ]; then
+            cp -r .github/workflows /tmp/github-actions-backup/
+          fi
       
       # 合并上游仓库的更改
       - name: 合并上游仓库的更改
@@ -36,6 +44,18 @@ jobs:
           # 如果有冲突，以上游仓库为准
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "GitHub Actions"
+      
+      # 恢复GitHub Action文件
+      - name: 恢复GitHub Action文件
+        run: |
+          if [ -d "/tmp/github-actions-backup/workflows" ]; then
+            mkdir -p .github/workflows
+            cp -r /tmp/github-actions-backup/workflows/* .github/workflows/
+            git add .github/workflows
+            git commit -m "恢复GitHub Action文件" || echo "没有需要恢复的文件"
+          fi
           
-          # 推送更改到你的仓库
+      # 推送更改到你的仓库
+      - name: 推送更改到仓库
+        run: |
           git push origin
