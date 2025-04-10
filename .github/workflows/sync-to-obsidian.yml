@@ -16,8 +16,23 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     
     steps:
-      # 检出当前仓库代码（使用稀疏检出策略，只检出必要的目录结构）
+      # 缓存仓库内容
+      - name: 缓存仓库
+        id: cache-repo
+        uses: actions/cache@v3
+        with:
+          path: |
+            ./01_economist
+            ./02_new_yorker
+            ./04_atlantic
+            ./05_wired
+          key: repo-content-${{ github.sha }}
+          restore-keys: |
+            repo-content-
+
+      # 如果缓存未命中，检出当前仓库代码（使用稀疏检出策略，只检出必要的目录结构）
       - name: 检出当前仓库
+        if: steps.cache-repo.outputs.cache-hit != 'true'
         uses: actions/checkout@v3
         with:
           fetch-depth: 1
@@ -56,6 +71,13 @@ jobs:
           # 验证配置是否生效
           echo "AWS CLI配置完成，当前配置："
           aws configure list
+          
+      # 缓存AWS CLI配置
+      - name: 缓存AWS CLI配置
+        uses: actions/cache@v3
+        with:
+          path: ~/.aws
+          key: aws-cli-config-${{ runner.os }}
       
       # 获取当前日期
       - name: 获取当前日期
@@ -110,8 +132,14 @@ jobs:
           echo "开始同步经济学人目录: ${{ steps.economist.outputs.latest_dir }}"
           
           if [ -d "${{ steps.economist.outputs.latest_dir }}" ]; then
-            aws s3 sync "${{ steps.economist.outputs.latest_dir }}" "s3://${{ secrets.COS_BUCKET }}/2.外刊/经济学人/${{ steps.date.outputs.date }}/" --endpoint-url=https://cos.${{ secrets.COS_REGION }}.myqcloud.com
-            echo "已同步经济学人到COS"
+            # 只上传PDF文件
+            for file in "${{ steps.economist.outputs.latest_dir }}"/*.pdf; do
+              if [ -f "$file" ]; then
+                echo "正在上传PDF文件: $file"
+                aws s3 cp "$file" "s3://${{ secrets.COS_BUCKET }}/2.外刊/经济学人/${{ steps.date.outputs.date }}/" --endpoint-url=https://cos.${{ secrets.COS_REGION }}.myqcloud.com
+              fi
+            done
+            echo "已同步经济学人PDF到COS"
           else
             echo "经济学人目录不存在或为空: ${{ steps.economist.outputs.latest_dir }}"
           fi
@@ -121,8 +149,14 @@ jobs:
         if: steps.newyorker.outputs.latest_dir != ''
         run: |
           if [ -d "${{ steps.newyorker.outputs.latest_dir }}" ]; then
-            aws s3 sync "${{ steps.newyorker.outputs.latest_dir }}" "s3://${{ secrets.COS_BUCKET }}/2.外刊/纽约客/${{ steps.date.outputs.date }}/" --endpoint-url=https://cos.${{ secrets.COS_REGION }}.myqcloud.com
-            echo "已同步纽约客到COS"
+            # 只上传PDF文件
+            for file in "${{ steps.newyorker.outputs.latest_dir }}"/*.pdf; do
+              if [ -f "$file" ]; then
+                echo "正在上传PDF文件: $file"
+                aws s3 cp "$file" "s3://${{ secrets.COS_BUCKET }}/2.外刊/纽约客/${{ steps.date.outputs.date }}/" --endpoint-url=https://cos.${{ secrets.COS_REGION }}.myqcloud.com
+              fi
+            done
+            echo "已同步纽约客PDF到COS"
           else
             echo "纽约客目录不存在或为空: ${{ steps.newyorker.outputs.latest_dir }}"
           fi
@@ -133,8 +167,14 @@ jobs:
           if [ -d "./04_atlantic" ]; then
             LATEST_ATLANTIC_DIR=$(find ./04_atlantic -maxdepth 1 -type d -mindepth 1 -not -path "*/\.*" | sort -r | head -n 1)
             if [ -n "$LATEST_ATLANTIC_DIR" ] && [ -d "$LATEST_ATLANTIC_DIR" ]; then
-              aws s3 sync "$LATEST_ATLANTIC_DIR" "s3://${{ secrets.COS_BUCKET }}/2.外刊/大西洋月刊/${{ steps.date.outputs.date }}/" --endpoint-url=https://cos.${{ secrets.COS_REGION }}.myqcloud.com
-              echo "已同步The Atlantic到COS"
+              # 只上传PDF文件
+              for file in "$LATEST_ATLANTIC_DIR"/*.pdf; do
+                if [ -f "$file" ]; then
+                  echo "正在上传PDF文件: $file"
+                  aws s3 cp "$file" "s3://${{ secrets.COS_BUCKET }}/2.外刊/大西洋月刊/${{ steps.date.outputs.date }}/" --endpoint-url=https://cos.${{ secrets.COS_REGION }}.myqcloud.com
+                fi
+              done
+              echo "已同步The Atlantic PDF到COS"
             else
               echo "未找到有效的The Atlantic目录"
             fi
@@ -148,8 +188,14 @@ jobs:
           if [ -d "./05_wired" ]; then
             LATEST_WIRED_DIR=$(find ./05_wired -maxdepth 1 -type d -mindepth 1 -not -path "*/\.*" | sort -r | head -n 1)
             if [ -n "$LATEST_WIRED_DIR" ] && [ -d "$LATEST_WIRED_DIR" ]; then
-              aws s3 sync "$LATEST_WIRED_DIR" "s3://${{ secrets.COS_BUCKET }}/2.外刊/连线杂志/${{ steps.date.outputs.date }}/" --endpoint-url=https://cos.${{ secrets.COS_REGION }}.myqcloud.com
-              echo "已同步Wired到COS"
+              # 只上传PDF文件
+              for file in "$LATEST_WIRED_DIR"/*.pdf; do
+                if [ -f "$file" ]; then
+                  echo "正在上传PDF文件: $file"
+                  aws s3 cp "$file" "s3://${{ secrets.COS_BUCKET }}/2.外刊/连线杂志/${{ steps.date.outputs.date }}/" --endpoint-url=https://cos.${{ secrets.COS_REGION }}.myqcloud.com
+                fi
+              done
+              echo "已同步Wired PDF到COS"
             else
               echo "未找到有效的Wired目录"
             fi
