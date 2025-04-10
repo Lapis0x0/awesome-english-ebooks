@@ -1,0 +1,110 @@
+name: 同步外刊到Obsidian
+
+on:
+  # 在同步上游仓库工作流完成后运行
+  workflow_run:
+    workflows: ["同步上游仓库"]
+    types:
+      - completed
+  # 允许手动触发
+  workflow_dispatch:
+
+jobs:
+  sync-to-cos:
+    runs-on: ubuntu-latest
+    # 只有当触发的工作流成功完成时才运行
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    
+    steps:
+      # 检出当前仓库代码
+      - name: 检出当前仓库
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+      
+      # 安装腾讯云COSCLI
+      - name: 安装腾讯云COSCLI
+        run: |
+          curl -O https://cos5.cloud.tencent.com/cosbrowser/cosbrowser-tools/coscli/coscli-linux
+          chmod +x ./coscli-linux
+          sudo mv ./coscli-linux /usr/local/bin/coscli
+          coscli --version
+      
+      # 配置腾讯云COS凭证
+      - name: 配置腾讯云COS凭证
+        run: |
+          mkdir -p ~/.coscli
+          cat > ~/.coscli/config.json << EOF
+          {
+            "cos_api_version": "5.0",
+            "base": {
+              "secretid": "${{ secrets.COS_SECRET_ID }}",
+              "secretkey": "${{ secrets.COS_SECRET_KEY }}",
+              "sessiontoken": ""
+            },
+            "buckets": [
+              {
+                "name": "${{ secrets.COS_BUCKET }}",
+                "alias": "obsidian",
+                "region": "${{ secrets.COS_REGION }}"
+              }
+            ]
+          }
+          EOF
+      
+      # 获取当前日期
+      - name: 获取当前日期
+        id: date
+        run: echo "date=$(date +'%Y.%m.%d')" >> $GITHUB_OUTPUT
+      
+      # 查找最新的经济学人文件
+      - name: 查找最新的经济学人文件
+        id: economist
+        run: |
+          LATEST_ECONOMIST_DIR=$(find ./01_economist -type d -name "te_*" | sort -r | head -n 1)
+          echo "latest_dir=$LATEST_ECONOMIST_DIR" >> $GITHUB_OUTPUT
+          echo "找到最新的经济学人目录: $LATEST_ECONOMIST_DIR"
+      
+      # 查找最新的纽约客文件
+      - name: 查找最新的纽约客文件
+        id: newyorker
+        run: |
+          LATEST_NEWYORKER_DIR=$(find ./02_new_yorker -type d -name "*" -not -path "*/\.*" | sort -r | head -n 1)
+          echo "latest_dir=$LATEST_NEWYORKER_DIR" >> $GITHUB_OUTPUT
+          echo "找到最新的纽约客目录: $LATEST_NEWYORKER_DIR"
+      
+      # 同步经济学人到COS
+      - name: 同步经济学人到COS
+        if: steps.economist.outputs.latest_dir != ''
+        run: |
+          coscli sync ${{ steps.economist.outputs.latest_dir }} cos://obsidian/obisidian-1302893975/2.外刊/经济学人/${{ steps.date.outputs.date }}/ -r
+          echo "已同步经济学人到COS"
+      
+      # 同步纽约客到COS
+      - name: 同步纽约客到COS
+        if: steps.newyorker.outputs.latest_dir != ''
+        run: |
+          coscli sync ${{ steps.newyorker.outputs.latest_dir }} cos://obsidian/obisidian-1302893975/2.外刊/纽约客/${{ steps.date.outputs.date }}/ -r
+          echo "已同步纽约客到COS"
+      
+      # 同步The Atlantic到COS（如果有更新）
+      - name: 同步The Atlantic到COS
+        run: |
+          LATEST_ATLANTIC_DIR=$(find ./04_atlantic -type d -name "*" -not -path "*/\.*" | sort -r | head -n 1)
+          if [ -n "$LATEST_ATLANTIC_DIR" ]; then
+            coscli sync $LATEST_ATLANTIC_DIR cos://obsidian/obisidian-1302893975/2.外刊/大西洋月刊/${{ steps.date.outputs.date }}/ -r
+            echo "已同步The Atlantic到COS"
+          else
+            echo "未找到The Atlantic目录"
+          fi
+      
+      # 同步Wired到COS（如果有更新）
+      - name: 同步Wired到COS
+        run: |
+          LATEST_WIRED_DIR=$(find ./05_wired -type d -name "*" -not -path "*/\.*" | sort -r | head -n 1)
+          if [ -n "$LATEST_WIRED_DIR" ]; then
+            coscli sync $LATEST_WIRED_DIR cos://obsidian/obisidian-1302893975/2.外刊/连线杂志/${{ steps.date.outputs.date }}/ -r
+            echo "已同步Wired到COS"
+          else
+            echo "未找到Wired目录"
+          fi
