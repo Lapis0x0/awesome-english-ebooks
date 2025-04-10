@@ -121,22 +121,31 @@ jobs:
             # 只上传PDF文件
             for file in "${{ steps.economist.outputs.latest_dir }}"/*.pdf; do
               if [ -f "$file" ]; then
-                echo "正在上传PDF文件: $file"
-                # 获取文件大小
-                file_size=$(stat -c%s "$file")
-                echo "文件大小: $file_size 字节"
-                
                 # 提取文件名
                 filename=$(basename "$file")
+                # 构建S3路径
+                s3_key="2.外刊/经济学人/${{ steps.economist.outputs.date }}/$filename"
                 
-                # 直接使用低级命令上传
-                echo "使用s3api上传文件..."
-                aws s3api put-object \
-                  --bucket ${{ secrets.COS_BUCKET }} \
-                  --key "2.外刊/经济学人/${{ steps.economist.outputs.date }}/$filename" \
-                  --body "$file" \
-                  --content-length $file_size \
-                  --endpoint-url=https://cos.${{ secrets.COS_REGION }}.myqcloud.com
+                # 检查文件是否已存在
+                echo "检查COS中是否已存在文件: $s3_key"
+                if aws s3api head-object --bucket ${{ secrets.COS_BUCKET }} --key "$s3_key" --endpoint-url=https://cos.${{ secrets.COS_REGION }}.myqcloud.com 2>/dev/null; then
+                  echo "文件已存在，跳过上传: $s3_key"
+                else
+                  echo "正在上传PDF文件: $file"
+                  # 获取文件大小
+                  file_size=$(stat -c%s "$file")
+                  echo "文件大小: $file_size 字节"
+                  
+                  # 直接使用低级命令上传
+                  echo "使用s3api上传文件..."
+                  aws s3api put-object \
+                    --bucket ${{ secrets.COS_BUCKET }} \
+                    --key "$s3_key" \
+                    --body "$file" \
+                    --content-length $file_size \
+                    --endpoint-url=https://cos.${{ secrets.COS_REGION }}.myqcloud.com
+                  echo "文件上传完成: $s3_key"
+                fi
               fi
             done
             echo "已同步经济学人PDF到COS"
@@ -152,22 +161,31 @@ jobs:
             # 只上传PDF文件
             for file in "${{ steps.newyorker.outputs.latest_dir }}"/*.pdf; do
               if [ -f "$file" ]; then
-                echo "正在上传PDF文件: $file"
-                # 获取文件大小
-                file_size=$(stat -c%s "$file")
-                echo "文件大小: $file_size 字节"
-                
                 # 提取文件名
                 filename=$(basename "$file")
+                # 构建S3路径
+                s3_key="2.外刊/纽约客/${{ steps.newyorker.outputs.date }}/$filename"
                 
-                # 直接使用低级命令上传
-                echo "使用s3api上传文件..."
-                aws s3api put-object \
-                  --bucket ${{ secrets.COS_BUCKET }} \
-                  --key "2.外刊/纽约客/${{ steps.newyorker.outputs.date }}/$filename" \
-                  --body "$file" \
-                  --content-length $file_size \
-                  --endpoint-url=https://cos.${{ secrets.COS_REGION }}.myqcloud.com
+                # 检查文件是否已存在
+                echo "检查COS中是否已存在文件: $s3_key"
+                if aws s3api head-object --bucket ${{ secrets.COS_BUCKET }} --key "$s3_key" --endpoint-url=https://cos.${{ secrets.COS_REGION }}.myqcloud.com 2>/dev/null; then
+                  echo "文件已存在，跳过上传: $s3_key"
+                else
+                  echo "正在上传PDF文件: $file"
+                  # 获取文件大小
+                  file_size=$(stat -c%s "$file")
+                  echo "文件大小: $file_size 字节"
+                  
+                  # 直接使用低级命令上传
+                  echo "使用s3api上传文件..."
+                  aws s3api put-object \
+                    --bucket ${{ secrets.COS_BUCKET }} \
+                    --key "$s3_key" \
+                    --body "$file" \
+                    --content-length $file_size \
+                    --endpoint-url=https://cos.${{ secrets.COS_REGION }}.myqcloud.com
+                  echo "文件上传完成: $s3_key"
+                fi
               fi
             done
             echo "已同步纽约客PDF到COS"
@@ -189,22 +207,31 @@ jobs:
               # 只上传PDF文件
               for file in "$LATEST_ATLANTIC_DIR"/*.pdf; do
                 if [ -f "$file" ]; then
-                  echo "正在上传PDF文件: $file"
-                  # 获取文件大小
-                  file_size=$(stat -c%s "$file")
-                  echo "文件大小: $file_size 字节"
-                  
                   # 提取文件名
                   filename=$(basename "$file")
+                  # 构建S3路径
+                  s3_key="2.外刊/大西洋月刊/$ATLANTIC_DATE/$filename"
                   
-                  # 直接使用低级命令上传
-                  echo "使用s3api上传文件..."
-                  aws s3api put-object \
-                    --bucket ${{ secrets.COS_BUCKET }} \
-                    --key "2.外刊/大西洋月刊/$ATLANTIC_DATE/$filename" \
-                    --body "$file" \
-                    --content-length $file_size \
-                    --endpoint-url=https://cos.${{ secrets.COS_REGION }}.myqcloud.com
+                  # 检查文件是否已存在
+                  echo "检查COS中是否已存在文件: $s3_key"
+                  if aws s3api head-object --bucket ${{ secrets.COS_BUCKET }} --key "$s3_key" --endpoint-url=https://cos.${{ secrets.COS_REGION }}.myqcloud.com 2>/dev/null; then
+                    echo "文件已存在，跳过上传: $s3_key"
+                  else
+                    echo "正在上传PDF文件: $file"
+                    # 获取文件大小
+                    file_size=$(stat -c%s "$file")
+                    echo "文件大小: $file_size 字节"
+                    
+                    # 直接使用低级命令上传
+                    echo "使用s3api上传文件..."
+                    aws s3api put-object \
+                      --bucket ${{ secrets.COS_BUCKET }} \
+                      --key "$s3_key" \
+                      --body "$file" \
+                      --content-length $file_size \
+                      --endpoint-url=https://cos.${{ secrets.COS_REGION }}.myqcloud.com
+                    echo "文件上传完成: $s3_key"
+                  fi
                 fi
               done
               echo "已同步The Atlantic PDF到COS"
@@ -229,22 +256,31 @@ jobs:
               # 只上传PDF文件
               for file in "$LATEST_WIRED_DIR"/*.pdf; do
                 if [ -f "$file" ]; then
-                  echo "正在上传PDF文件: $file"
-                  # 获取文件大小
-                  file_size=$(stat -c%s "$file")
-                  echo "文件大小: $file_size 字节"
-                  
                   # 提取文件名
                   filename=$(basename "$file")
+                  # 构建S3路径
+                  s3_key="2.外刊/连线杂志/$WIRED_DATE/$filename"
                   
-                  # 直接使用低级命令上传
-                  echo "使用s3api上传文件..."
-                  aws s3api put-object \
-                    --bucket ${{ secrets.COS_BUCKET }} \
-                    --key "2.外刊/连线杂志/$WIRED_DATE/$filename" \
-                    --body "$file" \
-                    --content-length $file_size \
-                    --endpoint-url=https://cos.${{ secrets.COS_REGION }}.myqcloud.com
+                  # 检查文件是否已存在
+                  echo "检查COS中是否已存在文件: $s3_key"
+                  if aws s3api head-object --bucket ${{ secrets.COS_BUCKET }} --key "$s3_key" --endpoint-url=https://cos.${{ secrets.COS_REGION }}.myqcloud.com 2>/dev/null; then
+                    echo "文件已存在，跳过上传: $s3_key"
+                  else
+                    echo "正在上传PDF文件: $file"
+                    # 获取文件大小
+                    file_size=$(stat -c%s "$file")
+                    echo "文件大小: $file_size 字节"
+                    
+                    # 直接使用低级命令上传
+                    echo "使用s3api上传文件..."
+                    aws s3api put-object \
+                      --bucket ${{ secrets.COS_BUCKET }} \
+                      --key "$s3_key" \
+                      --body "$file" \
+                      --content-length $file_size \
+                      --endpoint-url=https://cos.${{ secrets.COS_REGION }}.myqcloud.com
+                    echo "文件上传完成: $s3_key"
+                  fi
                 fi
               done
               echo "已同步Wired PDF到COS"
