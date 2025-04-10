@@ -28,41 +28,19 @@ jobs:
             05_wired
           sparse-checkout-cone-mode: true
       
-      # 安装腾讯云COSCLI
-      - name: 安装腾讯云COSCLI
-        run: |
-          # 下载COSCLI安装脚本
-          curl -fsSL https://download.intl.cloud.tencent.com/coscli/coscli-linux -o coscli-linux
-          # 确认文件已下载
-          ls -la coscli-linux
-          # 设置执行权限
-          chmod +x coscli-linux
-          # 移动到bin目录
-          sudo mv coscli-linux /usr/local/bin/coscli
-          # 验证安装
-          coscli -v || echo "COSCLI安装失败"
+      # 安装AWS CLI
+      - name: 安装AWS CLI
+        uses: unfor19/install-aws-cli-action@v1
+        with:
+          version: 2
       
-      # 配置腾讯云COS凭证
-      - name: 配置腾讯云COS凭证
-        run: |
-          mkdir -p ~/.coscli
-          cat > ~/.coscli/config.json << EOF
-          {
-            "cos_api_version": "5.0",
-            "base": {
-              "secretid": "${{ secrets.COS_SECRET_ID }}",
-              "secretkey": "${{ secrets.COS_SECRET_KEY }}",
-              "sessiontoken": ""
-            },
-            "buckets": [
-              {
-                "name": "${{ secrets.COS_BUCKET }}",
-                "alias": "obsidian",
-                "region": "${{ secrets.COS_REGION }}"
-              }
-            ]
-          }
-          EOF
+      # 配置AWS凭证（用于访问腾讯云COS）
+      - name: 配置AWS凭证
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.COS_SECRET_ID }}
+          aws-secret-access-key: ${{ secrets.COS_SECRET_KEY }}
+          aws-region: ${{ secrets.COS_REGION }}
       
       # 获取当前日期
       - name: 获取当前日期
@@ -89,14 +67,14 @@ jobs:
       - name: 同步经济学人到COS
         if: steps.economist.outputs.latest_dir != ''
         run: |
-          coscli sync ${{ steps.economist.outputs.latest_dir }} cos://obsidian/obisidian-1302893975/2.外刊/经济学人/${{ steps.date.outputs.date }}/ -r
+          aws s3 sync ${{ steps.economist.outputs.latest_dir }} s3://${{ secrets.COS_BUCKET }}/obisidian-1302893975/2.外刊/经济学人/${{ steps.date.outputs.date }}/ --endpoint-url=${{ secrets.COS_ENDPOINT }} --delete
           echo "已同步经济学人到COS"
       
       # 同步纽约客到COS
       - name: 同步纽约客到COS
         if: steps.newyorker.outputs.latest_dir != ''
         run: |
-          coscli sync ${{ steps.newyorker.outputs.latest_dir }} cos://obsidian/obisidian-1302893975/2.外刊/纽约客/${{ steps.date.outputs.date }}/ -r
+          aws s3 sync ${{ steps.newyorker.outputs.latest_dir }} s3://${{ secrets.COS_BUCKET }}/obisidian-1302893975/2.外刊/纽约客/${{ steps.date.outputs.date }}/ --endpoint-url=${{ secrets.COS_ENDPOINT }} --delete
           echo "已同步纽约客到COS"
       
       # 同步The Atlantic到COS（如果有更新）
@@ -104,7 +82,7 @@ jobs:
         run: |
           LATEST_ATLANTIC_DIR=$(find ./04_atlantic -type d -name "*" -not -path "*/\.*" | sort -r | head -n 1)
           if [ -n "$LATEST_ATLANTIC_DIR" ]; then
-            coscli sync $LATEST_ATLANTIC_DIR cos://obsidian/obisidian-1302893975/2.外刊/大西洋月刊/${{ steps.date.outputs.date }}/ -r
+            aws s3 sync $LATEST_ATLANTIC_DIR s3://${{ secrets.COS_BUCKET }}/obisidian-1302893975/2.外刊/大西洋月刊/${{ steps.date.outputs.date }}/ --endpoint-url=${{ secrets.COS_ENDPOINT }} --delete
             echo "已同步The Atlantic到COS"
           else
             echo "未找到The Atlantic目录"
@@ -115,7 +93,7 @@ jobs:
         run: |
           LATEST_WIRED_DIR=$(find ./05_wired -type d -name "*" -not -path "*/\.*" | sort -r | head -n 1)
           if [ -n "$LATEST_WIRED_DIR" ]; then
-            coscli sync $LATEST_WIRED_DIR cos://obsidian/obisidian-1302893975/2.外刊/连线杂志/${{ steps.date.outputs.date }}/ -r
+            aws s3 sync $LATEST_WIRED_DIR s3://${{ secrets.COS_BUCKET }}/obisidian-1302893975/2.外刊/连线杂志/${{ steps.date.outputs.date }}/ --endpoint-url=${{ secrets.COS_ENDPOINT }} --delete
             echo "已同步Wired到COS"
           else
             echo "未找到Wired目录"
