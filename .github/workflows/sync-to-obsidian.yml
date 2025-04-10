@@ -16,19 +16,31 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     
     steps:
-      # 检出当前仓库代码
+      # 检出当前仓库代码（使用稀疏检出策略，只检出必要的目录结构）
       - name: 检出当前仓库
         uses: actions/checkout@v3
         with:
           fetch-depth: 1
+          sparse-checkout: |
+            01_economist
+            02_new_yorker
+            04_atlantic
+            05_wired
+          sparse-checkout-cone-mode: true
       
       # 安装腾讯云COSCLI
       - name: 安装腾讯云COSCLI
         run: |
-          curl -O https://cos5.cloud.tencent.com/cosbrowser/cosbrowser-tools/coscli/coscli-linux
-          chmod +x ./coscli-linux
-          sudo mv ./coscli-linux /usr/local/bin/coscli
-          coscli --version
+          # 下载COSCLI安装脚本
+          curl -fsSL https://download.intl.cloud.tencent.com/coscli/coscli-linux -o coscli-linux
+          # 确认文件已下载
+          ls -la coscli-linux
+          # 设置执行权限
+          chmod +x coscli-linux
+          # 移动到bin目录
+          sudo mv coscli-linux /usr/local/bin/coscli
+          # 验证安装
+          coscli -v || echo "COSCLI安装失败"
       
       # 配置腾讯云COS凭证
       - name: 配置腾讯云COS凭证
