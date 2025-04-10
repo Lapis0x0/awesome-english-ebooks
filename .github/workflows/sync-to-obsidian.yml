@@ -34,13 +34,20 @@ jobs:
         with:
           version: 2
       
-      # 配置AWS凭证（用于访问腾讯云COS）
+      # 直接配置AWS凭证（用于访问腾讯云COS）
       - name: 配置AWS凭证
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.COS_SECRET_ID }}
-          aws-secret-access-key: ${{ secrets.COS_SECRET_KEY }}
-          aws-region: ${{ secrets.COS_REGION }}
+        run: |
+          mkdir -p ~/.aws
+          cat > ~/.aws/credentials << EOF
+          [default]
+          aws_access_key_id = ${{ secrets.COS_SECRET_ID }}
+          aws_secret_access_key = ${{ secrets.COS_SECRET_KEY }}
+          EOF
+          
+          cat > ~/.aws/config << EOF
+          [default]
+          region = ${{ secrets.COS_REGION }}
+          EOF
       
       # 获取当前日期
       - name: 获取当前日期
