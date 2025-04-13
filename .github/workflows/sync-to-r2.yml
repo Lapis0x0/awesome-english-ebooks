@@ -96,51 +96,59 @@ jobs:
             local content_type="application/pdf"
             
             echo "正在上传文件: $filename 到 $r2_key"
+            echo "上传URL: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com/${{ secrets.R2_BUCKET_NAME }}/$r2_key"
             
-            # 使用Cloudflare R2 API直接上传
-            response=$(curl -s -X PUT \
+            # 使用Cloudflare R2 API直接上传 (移除-s，添加-v获取详细信息)
+            curl -v -X PUT \
               "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com/${{ secrets.R2_BUCKET_NAME }}/$r2_key" \
               -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
               -H "Content-Type: $content_type" \
-              --data-binary @"$file_path")
+              --data-binary @"$file_path"
             
-            # 检查HTTP状态码
-            if [ $? -eq 0 ]; then
+            # 保存curl的退出码
+            local curl_status=$?
+            
+            # 检查curl退出码
+            if [ $curl_status -eq 0 ]; then
               echo "文件上传成功: $r2_key"
               return 0
             else
-              echo "文件上传失败: $r2_key"
-              echo "错误信息: $response"
-              return 1
+              echo "文件上传失败: $r2_key，退出码: $curl_status"
+              return $curl_status
             fi
           }
           
           # 将函数导出到环境中，以便其他步骤使用
-          echo "upload_to_r2() {
-            local file_path=\"\$1\"
-            local r2_key=\"\$2\"
-            local filename=\$(basename \"\$file_path\")
-            local content_type=\"application/pdf\"
-            
-            echo \"正在上传文件: \$filename 到 \$r2_key\"
-            
-            # 使用Cloudflare R2 API直接上传
-            response=\$(curl -s -X PUT \\
-              \"https://\${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com/\${{ secrets.R2_BUCKET_NAME }}/\$r2_key\" \\
-              -H \"Authorization: Bearer \${{ secrets.CLOUDFLARE_API_TOKEN }}\" \\
-              -H \"Content-Type: \$content_type\" \\
-              --data-binary @\"\$file_path\")
-            
-            # 检查HTTP状态码
-            if [ \$? -eq 0 ]; then
-              echo \"文件上传成功: \$r2_key\"
-              return 0
-            else
-              echo \"文件上传失败: \$r2_key\"
-              echo \"错误信息: \$response\"
-              return 1
-            fi
-          }" > /tmp/upload_function.sh
+          cat > /tmp/upload_function.sh << 'EOF'
+upload_to_r2() {
+  local file_path="$1"
+  local r2_key="$2"
+  local filename=$(basename "$file_path")
+  local content_type="application/pdf"
+  
+  echo "正在上传文件: $filename 到 $r2_key"
+  echo "上传URL: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com/${{ secrets.R2_BUCKET_NAME }}/$r2_key"
+  
+  # 使用Cloudflare R2 API直接上传 (移除-s，添加-v获取详细信息)
+  curl -v -X PUT \
+    "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com/${{ secrets.R2_BUCKET_NAME }}/$r2_key" \
+    -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+    -H "Content-Type: $content_type" \
+    --data-binary @"$file_path"
+  
+  # 保存curl的退出码
+  local curl_status=$?
+  
+  # 检查curl退出码
+  if [ $curl_status -eq 0 ]; then
+    echo "文件上传成功: $r2_key"
+    return 0
+  else
+    echo "文件上传失败: $r2_key，退出码: $curl_status"
+    return $curl_status
+  fi
+}
+EOF
           
           chmod +x /tmp/upload_function.sh
       
