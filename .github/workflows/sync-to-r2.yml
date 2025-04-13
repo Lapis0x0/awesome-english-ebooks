@@ -126,8 +126,11 @@ jobs:
                   echo "文件已存在，跳过上传: $s3_key"
                 else
                   echo "正在上传PDF文件: $file"
+                  # 禁用分块上传，使用单一请求上传文件
+                  aws configure set s3.multipart_threshold 999GB
                   aws s3 cp "$file" "s3://${{ secrets.R2_BUCKET_NAME }}/$s3_key" \
-                    --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com"
+                    --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com" \
+                    --no-progress
                   echo "文件上传完成: $s3_key"
                 fi
               fi
@@ -156,8 +159,11 @@ jobs:
                   echo "文件已存在，跳过上传: $s3_key"
                 else
                   echo "正在上传PDF文件: $file"
+                  # 禁用分块上传，使用单一请求上传文件
+                  aws configure set s3.multipart_threshold 999GB
                   aws s3 cp "$file" "s3://${{ secrets.R2_BUCKET_NAME }}/$s3_key" \
-                    --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com"
+                    --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com" \
+                    --no-progress
                   echo "文件上传完成: $s3_key"
                 fi
               fi
@@ -192,8 +198,11 @@ jobs:
                     echo "文件已存在，跳过上传: $s3_key"
                   else
                     echo "正在上传PDF文件: $file"
+                    # 禁用分块上传，使用单一请求上传文件
+                    aws configure set s3.multipart_threshold 999GB
                     aws s3 cp "$file" "s3://${{ secrets.R2_BUCKET_NAME }}/$s3_key" \
-                      --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com"
+                      --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com" \
+                      --no-progress
                     echo "文件上传完成: $s3_key"
                   fi
                 fi
@@ -231,8 +240,11 @@ jobs:
                     echo "文件已存在，跳过上传: $s3_key"
                   else
                     echo "正在上传PDF文件: $file"
+                    # 禁用分块上传，使用单一请求上传文件
+                    aws configure set s3.multipart_threshold 999GB
                     aws s3 cp "$file" "s3://${{ secrets.R2_BUCKET_NAME }}/$s3_key" \
-                      --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com"
+                      --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com" \
+                      --no-progress
                     echo "文件上传完成: $s3_key"
                   fi
                 fi
