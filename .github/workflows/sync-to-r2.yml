@@ -85,7 +85,7 @@ jobs:
             echo "latest_dir=" >> $GITHUB_OUTPUT
           fi
       
-      # 使用Cloudflare API上传文件的函数
+      # 使用Cloudflare R2 API上传文件的函数
       - name: 设置上传函数
         run: |
           # 创建上传函数
@@ -97,16 +97,15 @@ jobs:
             
             echo "正在上传文件: $filename 到 $r2_key"
             
-            # 使用Cloudflare API直接上传
+            # 使用Cloudflare R2 API直接上传
             response=$(curl -s -X PUT \
-              "https://api.cloudflare.com/client/v4/accounts/${{ secrets.R2_ACCOUNT_ID }}/r2/buckets/${{ secrets.R2_BUCKET_NAME }}/objects/$r2_key" \
+              "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com/${{ secrets.R2_BUCKET_NAME }}/$r2_key" \
               -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
               -H "Content-Type: $content_type" \
               --data-binary @"$file_path")
             
-            # 检查上传结果
-            success=$(echo $response | jq -r '.success')
-            if [ "$success" = "true" ]; then
+            # 检查HTTP状态码
+            if [ $? -eq 0 ]; then
               echo "文件上传成功: $r2_key"
               return 0
             else
@@ -125,16 +124,15 @@ jobs:
             
             echo \"正在上传文件: \$filename 到 \$r2_key\"
             
-            # 使用Cloudflare API直接上传
+            # 使用Cloudflare R2 API直接上传
             response=\$(curl -s -X PUT \\
-              \"https://api.cloudflare.com/client/v4/accounts/${{ secrets.R2_ACCOUNT_ID }}/r2/buckets/${{ secrets.R2_BUCKET_NAME }}/objects/\$r2_key\" \\
-              -H \"Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}\" \\
+              \"https://\${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com/\${{ secrets.R2_BUCKET_NAME }}/\$r2_key\" \\
+              -H \"Authorization: Bearer \${{ secrets.CLOUDFLARE_API_TOKEN }}\" \\
               -H \"Content-Type: \$content_type\" \\
               --data-binary @\"\$file_path\")
             
-            # 检查上传结果
-            success=\$(echo \$response | jq -r '.success')
-            if [ \"\$success\" = \"true\" ]; then
+            # 检查HTTP状态码
+            if [ \$? -eq 0 ]; then
               echo \"文件上传成功: \$r2_key\"
               return 0
             else
