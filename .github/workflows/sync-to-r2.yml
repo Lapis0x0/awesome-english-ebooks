@@ -128,7 +128,7 @@ jobs:
                 
                 # 检查文件是否已存在
                 echo "检查R2中是否已存在文件: $s3_key"
-                if aws s3api head-object --bucket ${{ secrets.R2_BUCKET_NAME }} --key "$s3_key" 2>/dev/null; then
+                if aws s3api head-object --bucket ${{ secrets.R2_BUCKET_NAME }} --key "$s3_key" --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com" 2>/dev/null; then
                   echo "文件已存在，跳过上传: $s3_key"
                 else
                   echo "正在上传PDF文件: $file"
@@ -142,7 +142,8 @@ jobs:
                     --bucket ${{ secrets.R2_BUCKET_NAME }} \
                     --key "$s3_key" \
                     --body "$file" \
-                    --content-length $file_size
+                    --content-length $file_size \
+                    --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com"
                   echo "文件上传完成: $s3_key"
                 fi
               fi
@@ -167,7 +168,7 @@ jobs:
                 
                 # 检查文件是否已存在
                 echo "检查R2中是否已存在文件: $s3_key"
-                if aws s3api head-object --bucket ${{ secrets.R2_BUCKET_NAME }} --key "$s3_key" 2>/dev/null; then
+                if aws s3api head-object --bucket ${{ secrets.R2_BUCKET_NAME }} --key "$s3_key" --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com" 2>/dev/null; then
                   echo "文件已存在，跳过上传: $s3_key"
                 else
                   echo "正在上传PDF文件: $file"
@@ -181,7 +182,8 @@ jobs:
                     --bucket ${{ secrets.R2_BUCKET_NAME }} \
                     --key "$s3_key" \
                     --body "$file" \
-                    --content-length $file_size
+                    --content-length $file_size \
+                    --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com"
                   echo "文件上传完成: $s3_key"
                 fi
               fi
@@ -212,7 +214,7 @@ jobs:
                   
                   # 检查文件是否已存在
                   echo "检查R2中是否已存在文件: $s3_key"
-                  if aws s3api head-object --bucket ${{ secrets.R2_BUCKET_NAME }} --key "$s3_key" 2>/dev/null; then
+                  if aws s3api head-object --bucket ${{ secrets.R2_BUCKET_NAME }} --key "$s3_key" --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com" 2>/dev/null; then
                     echo "文件已存在，跳过上传: $s3_key"
                   else
                     echo "正在上传PDF文件: $file"
@@ -226,7 +228,8 @@ jobs:
                       --bucket ${{ secrets.R2_BUCKET_NAME }} \
                       --key "$s3_key" \
                       --body "$file" \
-                      --content-length $file_size
+                      --content-length $file_size \
+                      --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com"
                     echo "文件上传完成: $s3_key"
                   fi
                 fi
@@ -260,7 +263,7 @@ jobs:
                   
                   # 检查文件是否已存在
                   echo "检查R2中是否已存在文件: $s3_key"
-                  if aws s3api head-object --bucket ${{ secrets.R2_BUCKET_NAME }} --key "$s3_key" 2>/dev/null; then
+                  if aws s3api head-object --bucket ${{ secrets.R2_BUCKET_NAME }} --key "$s3_key" --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com" 2>/dev/null; then
                     echo "文件已存在，跳过上传: $s3_key"
                   else
                     echo "正在上传PDF文件: $file"
@@ -274,7 +277,8 @@ jobs:
                       --bucket ${{ secrets.R2_BUCKET_NAME }} \
                       --key "$s3_key" \
                       --body "$file" \
-                      --content-length $file_size
+                      --content-length $file_size \
+                      --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com"
                     echo "文件上传完成: $s3_key"
                   fi
                 fi
