@@ -28,11 +28,34 @@ jobs:
             05_wired
           sparse-checkout-cone-mode: true
       
-      # 安装必要的工具
-      - name: 安装curl和jq
+      # 安装AWS CLI
+      - name: 安装AWS CLI
+        uses: unfor19/install-aws-cli-action@v1
+        with:
+          version: 2
+      
+      # 配置AWS凭证（用于访问Cloudflare R2）
+      - name: 配置AWS凭证
         run: |
-          sudo apt-get update
-          sudo apt-get install -y curl jq
+          mkdir -p ~/.aws
+          cat > ~/.aws/credentials << EOF
+          [default]
+          aws_access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          aws_secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          EOF
+          
+          cat > ~/.aws/config << EOF
+          [default]
+          region = auto
+          output = json
+          s3 =
+            addressing_style = virtual
+            endpoint_url = https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          EOF
+          
+          # 验证配置是否生效
+          echo "AWS CLI配置完成，当前配置："
+          aws configure list
       
       # 列出目录内容，以便于调试
       - name: 列出目录内容
@@ -85,79 +108,12 @@ jobs:
             echo "latest_dir=" >> $GITHUB_OUTPUT
           fi
       
-      # 使用Cloudflare R2 API上传文件的函数
-      - name: 设置上传函数
-        run: |
-          # 创建上传函数
-          upload_to_r2() {
-            local file_path="$1"
-            local r2_key="$2"
-            local filename=$(basename "$file_path")
-            local content_type="application/pdf"
-            
-            echo "正在上传文件: $filename 到 $r2_key"
-            echo "上传URL: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com/${{ secrets.R2_BUCKET_NAME }}/$r2_key"
-            
-            # 使用Cloudflare R2 API直接上传 (移除-s，添加-v获取详细信息)
-            curl -v -X PUT \
-              "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com/${{ secrets.R2_BUCKET_NAME }}/$r2_key" \
-              -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
-              -H "Content-Type: $content_type" \
-              --data-binary @"$file_path"
-            
-            # 保存curl的退出码
-            local curl_status=$?
-            
-            # 检查curl退出码
-            if [ $curl_status -eq 0 ]; then
-              echo "文件上传成功: $r2_key"
-              return 0
-            else
-              echo "文件上传失败: $r2_key，退出码: $curl_status"
-              return $curl_status
-            fi
-          }
-          
-          # 将函数导出到环境中，以便其他步骤使用
-          cat > /tmp/upload_function.sh << 'EOF'
-upload_to_r2() {
-  local file_path="$1"
-  local r2_key="$2"
-  local filename=$(basename "$file_path")
-  local content_type="application/pdf"
-  
-  echo "正在上传文件: $filename 到 $r2_key"
-  echo "上传URL: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com/${{ secrets.R2_BUCKET_NAME }}/$r2_key"
-  
-  # 使用Cloudflare R2 API直接上传 (移除-s，添加-v获取详细信息)
-  curl -v -X PUT \
-    "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com/${{ secrets.R2_BUCKET_NAME }}/$r2_key" \
-    -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
-    -H "Content-Type: $content_type" \
-    --data-binary @"$file_path"
-  
-  # 保存curl的退出码
-  local curl_status=$?
-  
-  # 检查curl退出码
-  if [ $curl_status -eq 0 ]; then
-    echo "文件上传成功: $r2_key"
-    return 0
-  else
-    echo "文件上传失败: $r2_key，退出码: $curl_status"
-    return $curl_status
-  fi
-}
-EOF
-          
-          chmod +x /tmp/upload_function.sh
-      
       # 同步经济学人到R2
       - name: 同步经济学人到R2
         if: steps.economist.outputs.latest_dir != ''
         run: |
-          # 导入上传函数
-          source /tmp/upload_function.sh
+          echo "配置AWS S3寻址样式"
+          aws configure set default.s3.addressing_style virtual
           
           echo "开始同步经济学人目录: ${{ steps.economist.outputs.latest_dir }}"
           
@@ -165,11 +121,30 @@ EOF
             # 只上传PDF文件
             for file in "${{ steps.economist.outputs.latest_dir }}"/*.pdf; do
               if [ -f "$file" ]; then
-                # 构建R2路径
-                r2_key="2.外刊/经济学人/${{ steps.economist.outputs.date }}/$(basename "$file")"
+                # 提取文件名
+                filename=$(basename "$file")
+                # 构建S3路径
+                s3_key="2.外刊/经济学人/${{ steps.economist.outputs.date }}/$filename"
                 
-                # 上传文件
-                upload_to_r2 "$file" "$r2_key"
+                # 检查文件是否已存在
+                echo "检查R2中是否已存在文件: $s3_key"
+                if aws s3api head-object --bucket ${{ secrets.R2_BUCKET_NAME }} --key "$s3_key" 2>/dev/null; then
+                  echo "文件已存在，跳过上传: $s3_key"
+                else
+                  echo "正在上传PDF文件: $file"
+                  # 获取文件大小
+                  file_size=$(stat -c%s "$file")
+                  echo "文件大小: $file_size 字节"
+                  
+                  # 直接使用低级命令上传
+                  echo "使用s3api上传文件..."
+                  aws s3api put-object \
+                    --bucket ${{ secrets.R2_BUCKET_NAME }} \
+                    --key "$s3_key" \
+                    --body "$file" \
+                    --content-length $file_size
+                  echo "文件上传完成: $s3_key"
+                fi
               fi
             done
             echo "已同步经济学人PDF到R2"
@@ -181,18 +156,34 @@ EOF
       - name: 同步纽约客到R2
         if: steps.newyorker.outputs.latest_dir != ''
         run: |
-          # 导入上传函数
-          source /tmp/upload_function.sh
-          
           if [ -d "${{ steps.newyorker.outputs.latest_dir }}" ]; then
             # 只上传PDF文件
             for file in "${{ steps.newyorker.outputs.latest_dir }}"/*.pdf; do
               if [ -f "$file" ]; then
-                # 构建R2路径
-                r2_key="2.外刊/纽约客/${{ steps.newyorker.outputs.date }}/$(basename "$file")"
+                # 提取文件名
+                filename=$(basename "$file")
+                # 构建S3路径
+                s3_key="2.外刊/纽约客/${{ steps.newyorker.outputs.date }}/$filename"
                 
-                # 上传文件
-                upload_to_r2 "$file" "$r2_key"
+                # 检查文件是否已存在
+                echo "检查R2中是否已存在文件: $s3_key"
+                if aws s3api head-object --bucket ${{ secrets.R2_BUCKET_NAME }} --key "$s3_key" 2>/dev/null; then
+                  echo "文件已存在，跳过上传: $s3_key"
+                else
+                  echo "正在上传PDF文件: $file"
+                  # 获取文件大小
+                  file_size=$(stat -c%s "$file")
+                  echo "文件大小: $file_size 字节"
+                  
+                  # 直接使用低级命令上传
+                  echo "使用s3api上传文件..."
+                  aws s3api put-object \
+                    --bucket ${{ secrets.R2_BUCKET_NAME }} \
+                    --key "$s3_key" \
+                    --body "$file" \
+                    --content-length $file_size
+                  echo "文件上传完成: $s3_key"
+                fi
               fi
             done
             echo "已同步纽约客PDF到R2"
@@ -203,9 +194,6 @@ EOF
       # 同步The Atlantic到R2（如果有更新）
       - name: 同步The Atlantic到R2
         run: |
-          # 导入上传函数
-          source /tmp/upload_function.sh
-          
           if [ -d "./04_atlantic" ]; then
             LATEST_ATLANTIC_DIR=$(find ./04_atlantic -maxdepth 1 -type d -mindepth 1 -not -path "*/\.*" | sort -r | head -n 1)
             if [ -n "$LATEST_ATLANTIC_DIR" ] && [ -d "$LATEST_ATLANTIC_DIR" ]; then
@@ -217,11 +205,30 @@ EOF
               # 只上传PDF文件
               for file in "$LATEST_ATLANTIC_DIR"/*.pdf; do
                 if [ -f "$file" ]; then
-                  # 构建R2路径
-                  r2_key="2.外刊/大西洋月刊/$ATLANTIC_DATE/$(basename "$file")"
+                  # 提取文件名
+                  filename=$(basename "$file")
+                  # 构建S3路径
+                  s3_key="2.外刊/大西洋月刊/$ATLANTIC_DATE/$filename"
                   
-                  # 上传文件
-                  upload_to_r2 "$file" "$r2_key"
+                  # 检查文件是否已存在
+                  echo "检查R2中是否已存在文件: $s3_key"
+                  if aws s3api head-object --bucket ${{ secrets.R2_BUCKET_NAME }} --key "$s3_key" 2>/dev/null; then
+                    echo "文件已存在，跳过上传: $s3_key"
+                  else
+                    echo "正在上传PDF文件: $file"
+                    # 获取文件大小
+                    file_size=$(stat -c%s "$file")
+                    echo "文件大小: $file_size 字节"
+                    
+                    # 直接使用低级命令上传
+                    echo "使用s3api上传文件..."
+                    aws s3api put-object \
+                      --bucket ${{ secrets.R2_BUCKET_NAME }} \
+                      --key "$s3_key" \
+                      --body "$file" \
+                      --content-length $file_size
+                    echo "文件上传完成: $s3_key"
+                  fi
                 fi
               done
               echo "已同步The Atlantic PDF到R2"
@@ -235,9 +242,6 @@ EOF
       # 同步Wired到R2（如果有更新）
       - name: 同步Wired到R2
         run: |
-          # 导入上传函数
-          source /tmp/upload_function.sh
-          
           if [ -d "./05_wired" ]; then
             LATEST_WIRED_DIR=$(find ./05_wired -maxdepth 1 -type d -mindepth 1 -not -path "*/\.*" | sort -r | head -n 1)
             if [ -n "$LATEST_WIRED_DIR" ] && [ -d "$LATEST_WIRED_DIR" ]; then
@@ -249,11 +253,30 @@ EOF
               # 只上传PDF文件
               for file in "$LATEST_WIRED_DIR"/*.pdf; do
                 if [ -f "$file" ]; then
-                  # 构建R2路径
-                  r2_key="2.外刊/连线杂志/$WIRED_DATE/$(basename "$file")"
+                  # 提取文件名
+                  filename=$(basename "$file")
+                  # 构建S3路径
+                  s3_key="2.外刊/连线杂志/$WIRED_DATE/$filename"
                   
-                  # 上传文件
-                  upload_to_r2 "$file" "$r2_key"
+                  # 检查文件是否已存在
+                  echo "检查R2中是否已存在文件: $s3_key"
+                  if aws s3api head-object --bucket ${{ secrets.R2_BUCKET_NAME }} --key "$s3_key" 2>/dev/null; then
+                    echo "文件已存在，跳过上传: $s3_key"
+                  else
+                    echo "正在上传PDF文件: $file"
+                    # 获取文件大小
+                    file_size=$(stat -c%s "$file")
+                    echo "文件大小: $file_size 字节"
+                    
+                    # 直接使用低级命令上传
+                    echo "使用s3api上传文件..."
+                    aws s3api put-object \
+                      --bucket ${{ secrets.R2_BUCKET_NAME }} \
+                      --key "$s3_key" \
+                      --body "$file" \
+                      --content-length $file_size
+                    echo "文件上传完成: $s3_key"
+                  fi
                 fi
               done
               echo "已同步Wired PDF到R2"
