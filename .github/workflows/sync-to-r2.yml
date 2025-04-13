@@ -48,13 +48,6 @@ jobs:
           [default]
           region = auto
           output = json
-          retry_mode = adaptive
-          max_attempts = 5
-          s3 =
-            addressing_style = virtual
-            endpoint_url = https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
-            multipart_threshold = 8MB
-            multipart_chunksize = 8MB
           EOF
           
           # 验证配置是否生效
@@ -116,9 +109,6 @@ jobs:
       - name: 同步经济学人到R2
         if: steps.economist.outputs.latest_dir != ''
         run: |
-          echo "配置AWS S3寻址样式"
-          aws configure set default.s3.addressing_style virtual
-          
           echo "开始同步经济学人目录: ${{ steps.economist.outputs.latest_dir }}"
           
           if [ -d "${{ steps.economist.outputs.latest_dir }}" ]; then
@@ -136,27 +126,8 @@ jobs:
                   echo "文件已存在，跳过上传: $s3_key"
                 else
                   echo "正在上传PDF文件: $file"
-                  # 获取文件大小
-                  file_size=$(stat -c%s "$file")
-                  echo "文件大小: $file_size 字节"
-                  
-                  # 直接使用低级命令上传
-                  echo "使用s3api上传文件..."
-                  # 先尝试使用cp命令（会自动处理大文件的分块上传）
-                  if [ $file_size -gt 8388608 ]; then  # 大于8MB使用cp命令
-                    echo "文件大于8MB，使用cp命令进行分块上传..."
-                    aws s3 cp "$file" "s3://${{ secrets.R2_BUCKET_NAME }}/$s3_key" \
-                      --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com" \
-                      --expected-size $file_size
-                  else
-                    echo "文件小于8MB，使用put-object命令..."
-                    aws s3api put-object \
-                      --bucket ${{ secrets.R2_BUCKET_NAME }} \
-                      --key "$s3_key" \
-                      --body "$file" \
-                      --content-length $file_size \
-                      --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com"
-                  fi
+                  aws s3 cp "$file" "s3://${{ secrets.R2_BUCKET_NAME }}/$s3_key" \
+                    --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com"
                   echo "文件上传完成: $s3_key"
                 fi
               fi
@@ -185,27 +156,8 @@ jobs:
                   echo "文件已存在，跳过上传: $s3_key"
                 else
                   echo "正在上传PDF文件: $file"
-                  # 获取文件大小
-                  file_size=$(stat -c%s "$file")
-                  echo "文件大小: $file_size 字节"
-                  
-                  # 直接使用低级命令上传
-                  echo "使用s3api上传文件..."
-                  # 先尝试使用cp命令（会自动处理大文件的分块上传）
-                  if [ $file_size -gt 8388608 ]; then  # 大于8MB使用cp命令
-                    echo "文件大于8MB，使用cp命令进行分块上传..."
-                    aws s3 cp "$file" "s3://${{ secrets.R2_BUCKET_NAME }}/$s3_key" \
-                      --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com" \
-                      --expected-size $file_size
-                  else
-                    echo "文件小于8MB，使用put-object命令..."
-                    aws s3api put-object \
-                      --bucket ${{ secrets.R2_BUCKET_NAME }} \
-                      --key "$s3_key" \
-                      --body "$file" \
-                      --content-length $file_size \
-                      --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com"
-                  fi
+                  aws s3 cp "$file" "s3://${{ secrets.R2_BUCKET_NAME }}/$s3_key" \
+                    --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com"
                   echo "文件上传完成: $s3_key"
                 fi
               fi
@@ -240,27 +192,8 @@ jobs:
                     echo "文件已存在，跳过上传: $s3_key"
                   else
                     echo "正在上传PDF文件: $file"
-                    # 获取文件大小
-                    file_size=$(stat -c%s "$file")
-                    echo "文件大小: $file_size 字节"
-                    
-                    # 直接使用低级命令上传
-                    echo "使用s3api上传文件..."
-                    # 先尝试使用cp命令（会自动处理大文件的分块上传）
-                    if [ $file_size -gt 8388608 ]; then  # 大于8MB使用cp命令
-                      echo "文件大于8MB，使用cp命令进行分块上传..."
-                      aws s3 cp "$file" "s3://${{ secrets.R2_BUCKET_NAME }}/$s3_key" \
-                        --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com" \
-                        --expected-size $file_size
-                    else
-                      echo "文件小于8MB，使用put-object命令..."
-                      aws s3api put-object \
-                        --bucket ${{ secrets.R2_BUCKET_NAME }} \
-                        --key "$s3_key" \
-                        --body "$file" \
-                        --content-length $file_size \
-                        --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com"
-                    fi
+                    aws s3 cp "$file" "s3://${{ secrets.R2_BUCKET_NAME }}/$s3_key" \
+                      --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com"
                     echo "文件上传完成: $s3_key"
                   fi
                 fi
@@ -298,27 +231,8 @@ jobs:
                     echo "文件已存在，跳过上传: $s3_key"
                   else
                     echo "正在上传PDF文件: $file"
-                    # 获取文件大小
-                    file_size=$(stat -c%s "$file")
-                    echo "文件大小: $file_size 字节"
-                    
-                    # 直接使用低级命令上传
-                    echo "使用s3api上传文件..."
-                    # 先尝试使用cp命令（会自动处理大文件的分块上传）
-                    if [ $file_size -gt 8388608 ]; then  # 大于8MB使用cp命令
-                      echo "文件大于8MB，使用cp命令进行分块上传..."
-                      aws s3 cp "$file" "s3://${{ secrets.R2_BUCKET_NAME }}/$s3_key" \
-                        --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com" \
-                        --expected-size $file_size
-                    else
-                      echo "文件小于8MB，使用put-object命令..."
-                      aws s3api put-object \
-                        --bucket ${{ secrets.R2_BUCKET_NAME }} \
-                        --key "$s3_key" \
-                        --body "$file" \
-                        --content-length $file_size \
-                        --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com"
-                    fi
+                    aws s3 cp "$file" "s3://${{ secrets.R2_BUCKET_NAME }}/$s3_key" \
+                      --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com"
                     echo "文件上传完成: $s3_key"
                   fi
                 fi
